@@ -1,68 +1,45 @@
-#!/usr/bin/env python3
-import math
-from math import sin, cos, pi
+from confluent_kafka import Producer
+import json
+import time
+import random
 
-import rospy
-import tf
-from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
+# Configuración del productor de Kafka
+conf = {
+    'bootstrap.servers': 'localhost:9092',  # Cambia esto según la dirección IP de tu contenedor Kafka
+    'client.id': 'python-producer'
+}
 
-rospy.init_node('odometry_publisher')
+# Crea el productor
+producer = Producer(conf)
 
-odom_pub = rospy.Publisher("odom", Odometry, queue_size=50)
-odom_broadcaster = tf.TransformBroadcaster()
+def delivery_report(err, msg):
+    """Callback llamado una vez que el mensaje ha sido entregado o ha fallado."""
+    if err is not None:
+        print('Error al entregar el mensaje: {}'.format(err))
+    else:
+        print('Mensaje entregado a {} [{}]'.format(msg.topic(), msg.partition()))
 
-x = 0.0
-y = 0.0
-th = 0.0
+def send_random_message(producer, topic):
+    """Envía un mensaje al topic con valores aleatorios."""
+    ruta_json = {
+        'id': random.randint(1, 100),
+        'latitud': round(random.uniform(-90, 90), 6),
+        'longitud': round(random.uniform(-180, 180), 6)
+    }
 
-vx = 0.1
-vy = -0.1
-vth = 0.1
+    # Imprime el JSON antes de enviarlo al topic
+    print(ruta_json)
 
-current_time = rospy.Time.now()
-last_time = rospy.Time.now()
+    producer.produce(topic, key='key', value=json.dumps(ruta_json), callback=delivery_report)
+    producer.flush()
 
-r = rospy.Rate(1.0)
-while not rospy.is_shutdown():
-    current_time = rospy.Time.now()
-
-    # compute odometry in a typical way given the velocities of the robot
-    dt = (current_time - last_time).to_sec()
-    delta_x = (vx * cos(th) - vy * sin(th)) * dt
-    delta_y = (vx * sin(th) + vy * cos(th)) * dt
-    delta_th = vth * dt
-
-    x += delta_x
-    y += delta_y
-    th += delta_th
-
-    # since all odometry is 6DOF we'll need a quaternion created from yaw
-    odom_quat = tf.transformations.quaternion_from_euler(0, 0, th)
-
-    # first, we'll publish the transform over tf
-    odom_broadcaster.sendTransform(
-        (x, y, 0.),
-        odom_quat,
-        current_time,
-        "base_link",
-        "odom"
-    )
-
-    # next, we'll publish the odometry message over ROS
-    odom = Odometry()
-    odom.header.stamp = current_time
-    odom.header.frame_id = "odom"
-
-    # set the position
-    odom.pose.pose = Pose(Point(x, y, 0.), Quaternion(*odom_quat))
-
-    # set the velocity
-    odom.child_frame_id = "base_link"
-    odom.twist.twist = Twist(Vector3(vx, vy, 0), Vector3(0, 0, vth))
-
-    # publish the message
-    odom_pub.publish(odom)
-
-    last_time = current_time
-    r.sleep()
+# Envia mensajes al topic 'rutas' con valores aleatorios
+try:
+    while True:
+        send_random_message(producer, 'rutas')
+        time.sleep(1)  # Espera 1 segundo entre mensajes
+except KeyboardInterrupt:
+    pass
+finally:
+    # Asegúrate de que todos los mensajes pendientes se hayan entregado antes de cerrar el productor
+    producer.flush()

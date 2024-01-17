@@ -24,7 +24,7 @@ services:
     ports:
       - '8080:8080'
     volumes:
-      - ../streamingProje:/home
+      - .:/home
       - /opt/spark/conf/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - /opt/spark/jars:/opt/bitnami/spark/ivy:z
     networks:
@@ -58,7 +58,7 @@ services:
     depends_on:
       - zookeeper
     volumes:
-      - ../streamingProje:/home
+      - .:/home
     networks:
       datapipeline:
         ipv4_address: 172.18.0.4
@@ -70,7 +70,7 @@ services:
     ports:
       - '9042:9042'
     volumes:
-      - ../streamingProje:/home
+      - .:/home
     networks:
       datapipeline:
         ipv4_address: 172.18.0.5
