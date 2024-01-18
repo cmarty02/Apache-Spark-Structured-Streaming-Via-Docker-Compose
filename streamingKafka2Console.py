@@ -19,7 +19,7 @@ spark.sparkContext.setLogLevel("ERROR")
 df = spark \
     .readStream \
     .format("kafka") \
-    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("kafka.bootstrap.servers", "172.18.0.4:9092") \
     .option("subscribe", "rutas") \
     .option("delimiter", ",") \
     .option("startingOffsets", "earliest") \
